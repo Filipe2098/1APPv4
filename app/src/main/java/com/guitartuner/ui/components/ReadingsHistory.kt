@@ -18,6 +18,7 @@ import com.guitartuner.ui.theme.TunerGreen
 @Composable
 fun ReadingsHistory(
     readings: List<Double>,
+    label: String = "HISTORY",
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -25,7 +26,7 @@ fun ReadingsHistory(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "HISTORY",
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             fontSize = 10.sp
@@ -44,7 +45,6 @@ fun ReadingsHistory(
             val height = size.height
             val midY = height / 2
 
-            // Draw center line (0 cents)
             drawLine(
                 color = TunerGreen.copy(alpha = 0.3f),
                 start = Offset(0f, midY),
@@ -52,22 +52,20 @@ fun ReadingsHistory(
                 strokeWidth = 1f
             )
 
-            // Draw ±5 cent lines
-            val fiveCentY = height * 0.4f
+            val fiveCentOffset = height * 0.1f
             drawLine(
                 color = Color.Gray.copy(alpha = 0.15f),
-                start = Offset(0f, midY - fiveCentY + midY * 0.1f),
-                end = Offset(width, midY - fiveCentY + midY * 0.1f),
+                start = Offset(0f, midY - fiveCentOffset),
+                end = Offset(width, midY - fiveCentOffset),
                 strokeWidth = 0.5f
             )
             drawLine(
                 color = Color.Gray.copy(alpha = 0.15f),
-                start = Offset(0f, midY + fiveCentY - midY * 0.1f),
-                end = Offset(width, midY + fiveCentY - midY * 0.1f),
+                start = Offset(0f, midY + fiveCentOffset),
+                end = Offset(width, midY + fiveCentOffset),
                 strokeWidth = 0.5f
             )
 
-            // Draw readings path
             if (readings.size >= 2) {
                 val path = Path()
                 val stepX = width / (readings.size - 1).coerceAtLeast(1)
@@ -77,11 +75,7 @@ fun ReadingsHistory(
                     val normalizedY = (cents / 50.0).toFloat()
                     val y = midY - normalizedY * midY * 0.9f
 
-                    if (index == 0) {
-                        path.moveTo(x, y)
-                    } else {
-                        path.lineTo(x, y)
-                    }
+                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
 
                 drawPath(

@@ -9,8 +9,7 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.guitartuner.audio.AudioProcessor
-import com.guitartuner.model.GuitarString
-import com.guitartuner.model.TunerState
+import com.guitartuner.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,13 +33,17 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
     val state: StateFlow<TunerState> = _state.asStateFlow()
 
     private var lastVibrateTime = 0L
-    private val historyMaxSize = 50 // ~5 seconds of readings at ~10 readings/sec
+    private val historyMaxSize = 50
+
+    // Median filter buffer for frequency smoothing
+    private val recentFrequencies = ArrayDeque<Double>(5)
 
     fun startListening(): Boolean {
         val context = getApplication<Application>()
         val started = audioProcessor.start(context)
         if (started) {
             _state.update { it.copy(isListening = true) }
+            recentFrequencies.clear()
             viewModelScope.launch {
                 audioProcessor.audioResults.collect { result ->
                     processAudioResult(result.frequency, result.volume)
@@ -52,6 +55,7 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopListening() {
         audioProcessor.stop()
+        recentFrequencies.clear()
         _state.update {
             it.copy(
                 isListening = false,
@@ -63,16 +67,24 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectString(guitarString: GuitarString?) {
-        _state.update { it.copy(selectedString = guitarString) }
-    }
-
     fun setCalibration(a4Freq: Double) {
         _state.update { it.copy(a4Calibration = a4Freq.coerceIn(420.0, 460.0)) }
     }
 
-    fun toggleDarkMode() {
-        _state.update { it.copy(isDarkMode = !it.isDarkMode) }
+    fun setDarkMode(dark: Boolean) {
+        _state.update { it.copy(isDarkMode = dark) }
+    }
+
+    fun setTunerMode(mode: TunerMode) {
+        _state.update { it.copy(tunerMode = mode) }
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        _state.update { it.copy(language = language) }
+    }
+
+    fun setVibrationEnabled(enabled: Boolean) {
+        _state.update { it.copy(vibrationEnabled = enabled) }
     }
 
     private fun processAudioResult(frequency: Double, volume: Float) {
@@ -81,39 +93,32 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // Filter out unreasonable frequencies for guitar
-        if (frequency < 60.0 || frequency > 1500.0) {
-            _state.update { it.copy(volume = volume) }
-            return
+        // Median filter: collect last 5 readings, use median for stability
+        recentFrequencies.addLast(frequency)
+        if (recentFrequencies.size > 5) recentFrequencies.removeFirst()
+
+        val smoothedFrequency = if (recentFrequencies.size >= 3) {
+            val sorted = recentFrequencies.sorted()
+            sorted[sorted.size / 2]
+        } else {
+            frequency
         }
 
         val currentState = _state.value
-        val selectedString = currentState.selectedString
 
-        val targetFreq: Double
-        val noteName: String
+        // Auto-detect closest guitar string
+        val closest = GuitarString.findClosest(smoothedFrequency, currentState.a4Calibration)
+        val targetFreq = closest.frequencyWithCalibration(currentState.a4Calibration)
+        val noteName = closest.noteName
 
-        if (selectedString != null) {
-            targetFreq = selectedString.frequencyWithCalibration(currentState.a4Calibration)
-            noteName = selectedString.noteName
-        } else {
-            // Auto-detect: find closest guitar string
-            val closest = GuitarString.findClosest(frequency, currentState.a4Calibration)
-            targetFreq = closest.frequencyWithCalibration(currentState.a4Calibration)
-            noteName = closest.noteName
-        }
-
-        val cents = 1200.0 * log2(frequency / targetFreq)
-
-        // Clamp cents display to ±50
+        val cents = 1200.0 * log2(smoothedFrequency / targetFreq)
         val displayCents = cents.coerceIn(-50.0, 50.0)
 
-        // Update readings history
         val newHistory = (currentState.readingsHistory + displayCents).takeLast(historyMaxSize)
 
         _state.update {
             it.copy(
-                detectedFrequency = frequency,
+                detectedFrequency = smoothedFrequency,
                 detectedNote = noteName,
                 targetFrequency = targetFreq,
                 cents = displayCents,
@@ -123,9 +128,9 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // Vibrate when in tune (±2 cents)
-        if (abs(cents) <= 2.0) {
+        if (currentState.vibrationEnabled && abs(cents) <= 2.0) {
             val now = System.currentTimeMillis()
-            if (now - lastVibrateTime > 500) { // Don't vibrate more than every 500ms
+            if (now - lastVibrateTime > 500) {
                 lastVibrateTime = now
                 try {
                     vibrator.vibrate(

@@ -17,7 +17,7 @@ data class AudioResult(
 
 class AudioProcessor(
     private val sampleRate: Int = 44100,
-    private val bufferSize: Int = 4096
+    private val bufferSize: Int = 8192
 ) {
     private val pitchDetector = PitchDetector(sampleRate)
     private var audioRecord: AudioRecord? = null
@@ -73,8 +73,7 @@ class AudioProcessor(
                     if (read > 0) {
                         val volume = pitchDetector.calculateRMS(readBuffer)
 
-                        // Only detect pitch if there's enough signal
-                        val frequency = if (volume > 0.02f) {
+                        val frequency = if (volume > 0.015f) {
                             pitchDetector.detectPitch(readBuffer)
                         } else {
                             -1.0

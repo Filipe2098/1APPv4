@@ -1,28 +1,33 @@
 package com.guitartuner.audio
 
 import kotlin.math.abs
-import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  * YIN pitch detection algorithm implementation.
- * Detects fundamental frequency with precision suitable for musical tuning.
+ * Detects fundamental frequency with sub-cent precision for musical tuning.
+ *
+ * Key improvements:
+ * - Larger processing window (8192 samples) for better low-frequency resolution
+ * - Tuned threshold to avoid harmonic detection
+ * - Parabolic interpolation for sub-sample accuracy
  */
 class PitchDetector(
     private val sampleRate: Int = 44100,
-    private val threshold: Double = 0.15
+    private val threshold: Double = 0.20
 ) {
     /**
      * Detect pitch using the YIN algorithm.
-     * @param buffer Audio samples as FloatArray
+     * @param buffer Audio samples as FloatArray (should be at least 8192 samples)
      * @return Detected frequency in Hz, or -1.0 if no pitch detected
      */
     fun detectPitch(buffer: FloatArray): Double {
         val bufferSize = buffer.size
         val halfBuffer = bufferSize / 2
 
-        // Step 1: Difference function
+        // Step 1: Difference function d(tau)
         val difference = FloatArray(halfBuffer)
-        for (tau in 0 until halfBuffer) {
+        for (tau in 1 until halfBuffer) {
             var sum = 0f
             for (i in 0 until halfBuffer) {
                 val delta = buffer[i] - buffer[i + tau]
@@ -31,59 +36,65 @@ class PitchDetector(
             difference[tau] = sum
         }
 
-        // Step 2: Cumulative mean normalized difference function
+        // Step 2: Cumulative mean normalized difference function (CMNDF)
         val cmndf = FloatArray(halfBuffer)
         cmndf[0] = 1f
         var runningSum = 0f
         for (tau in 1 until halfBuffer) {
             runningSum += difference[tau]
-            cmndf[tau] = if (runningSum != 0f) {
+            cmndf[tau] = if (runningSum > 0f) {
                 difference[tau] * tau / runningSum
             } else {
                 1f
             }
         }
 
-        // Step 3: Absolute threshold
-        // Find the first tau where cmndf dips below threshold, then find the minimum
-        var tauEstimate = -1
-        val minTau = (sampleRate / 1200.0).toInt().coerceAtLeast(2) // Max ~1200 Hz
-        val maxTau = (sampleRate / 50.0).toInt().coerceAtMost(halfBuffer - 1) // Min ~50 Hz
+        // Step 3: Absolute threshold - find first dip below threshold, then local min
+        // Guitar range: E2 (82.41Hz) to ~E5 (659Hz) with harmonics
+        // tau = sampleRate / frequency
+        val minTau = (sampleRate / 900.0).toInt().coerceAtLeast(2)   // Max ~900 Hz
+        val maxTau = (sampleRate / 65.0).toInt().coerceAtMost(halfBuffer - 2) // Min ~65 Hz
 
-        for (tau in minTau..maxTau) {
+        var tauEstimate = -1
+
+        // First pass: find where CMNDF dips below threshold
+        var tau = minTau
+        while (tau <= maxTau) {
             if (cmndf[tau] < threshold) {
-                // Find the local minimum after this point
-                var localMin = tau
-                while (localMin + 1 <= maxTau && cmndf[localMin + 1] < cmndf[localMin]) {
-                    localMin++
+                // Walk to the local minimum
+                while (tau + 1 <= maxTau && cmndf[tau + 1] < cmndf[tau]) {
+                    tau++
                 }
-                tauEstimate = localMin
+                tauEstimate = tau
                 break
             }
+            tau++
         }
 
+        // If no dip found below threshold, find absolute minimum
         if (tauEstimate == -1) {
-            // Fallback: find absolute minimum in range
             var minVal = Float.MAX_VALUE
-            for (tau in minTau..maxTau) {
-                if (cmndf[tau] < minVal) {
-                    minVal = cmndf[tau]
-                    tauEstimate = tau
+            for (t in minTau..maxTau) {
+                if (cmndf[t] < minVal) {
+                    minVal = cmndf[t]
+                    tauEstimate = t
                 }
             }
-            // Only use fallback if confidence is reasonable
-            if (minVal > 0.5) return -1.0
+            // Reject if confidence is too low
+            if (minVal > 0.45) return -1.0
         }
 
         // Step 4: Parabolic interpolation for sub-sample accuracy
         val betterTau = parabolicInterpolation(cmndf, tauEstimate, halfBuffer)
 
-        return if (betterTau > 0) sampleRate / betterTau else -1.0
+        val frequency = if (betterTau > 0) sampleRate.toDouble() / betterTau else -1.0
+
+        // Reject frequencies outside guitar range
+        if (frequency < 70.0 || frequency > 900.0) return -1.0
+
+        return frequency
     }
 
-    /**
-     * Parabolic interpolation around the estimated tau for better precision.
-     */
     private fun parabolicInterpolation(array: FloatArray, tau: Int, size: Int): Double {
         if (tau < 1 || tau >= size - 1) return tau.toDouble()
 
@@ -91,22 +102,20 @@ class PitchDetector(
         val s1 = array[tau].toDouble()
         val s2 = array[tau + 1].toDouble()
 
-        val adjustment = (s2 - s0) / (2.0 * (2.0 * s1 - s2 - s0))
+        val denominator = 2.0 * s1 - s2 - s0
+        if (abs(denominator) < 1e-12) return tau.toDouble()
+
+        val adjustment = (s2 - s0) / (2.0 * denominator)
 
         return if (abs(adjustment) < 1.0) tau + adjustment else tau.toDouble()
     }
 
-    /**
-     * Calculate RMS volume of the buffer.
-     * @return Volume level from 0.0 to 1.0
-     */
     fun calculateRMS(buffer: FloatArray): Float {
         var sum = 0.0
         for (sample in buffer) {
             sum += (sample * sample).toDouble()
         }
-        val rms = kotlin.math.sqrt(sum / buffer.size)
-        // Normalize to 0-1 range (typical microphone RMS is 0 to ~0.3)
+        val rms = sqrt(sum / buffer.size)
         return (rms * 3.0).toFloat().coerceIn(0f, 1f)
     }
 }

@@ -6,40 +6,37 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.guitartuner.i18n.StringKey
+import com.guitartuner.i18n.Strings
+import com.guitartuner.model.TunerMode
 import com.guitartuner.model.TunerState
 import com.guitartuner.model.TuningAccuracy
-import com.guitartuner.model.GuitarString
 import com.guitartuner.ui.components.*
 import com.guitartuner.ui.theme.TunerGreen
 import com.guitartuner.ui.theme.TunerRed
 import com.guitartuner.ui.theme.TunerYellow
+import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TunerScreen(
     state: TunerState,
     onStartListening: () -> Unit,
     onStopListening: () -> Unit,
-    onStringSelected: (GuitarString?) -> Unit,
-    onCalibrationChanged: (Double) -> Unit,
-    onToggleDarkMode: () -> Unit
+    onOpenSettings: () -> Unit
 ) {
-    var showCalibrationDialog by remember { mutableStateOf(false) }
+    val lang = state.language
+    fun s(key: StringKey) = Strings.get(key, lang)
 
     val accuracyColor by animateColorAsState(
         targetValue = when (state.tuningAccuracy) {
@@ -64,67 +61,47 @@ fun TunerScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Guitar Tuner",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
+            Text(
+                text = s(StringKey.APP_TITLE),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
 
-            Row {
-                IconButton(onClick = { showCalibrationDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Calibration",
-                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                    )
-                }
-                IconButton(onClick = onToggleDarkMode) {
-                    Icon(
-                        imageVector = if (state.isDarkMode) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
-                        contentDescription = "Toggle theme",
-                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                    )
-                }
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = s(StringKey.SETTINGS),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         // Calibration info
         Text(
             text = "A4 = ${state.a4Calibration.toInt()} Hz",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Note display
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 32.dp, vertical = 16.dp),
+                .padding(horizontal = 40.dp, vertical = 20.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = state.detectedNote,
-                    fontSize = 56.sp,
+                    fontSize = 64.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     color = if (state.detectedFrequency > 0) accuracyColor
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                     textAlign = TextAlign.Center
                 )
 
@@ -132,43 +109,70 @@ fun TunerScreen(
                     Text(
                         text = String.format("%.1f Hz", state.detectedFrequency),
                         fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         fontFamily = FontFamily.Monospace
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Tuner gauge
-        TunerGauge(
-            cents = if (state.detectedFrequency > 0) state.cents else 0.0,
-            accuracy = state.tuningAccuracy
-        )
+        // Tuner visual: stroboscopic or needle
+        when (state.tunerMode) {
+            TunerMode.STROBOSCOPIC -> {
+                StroboscopicTuner(
+                    cents = if (state.detectedFrequency > 0) state.cents else 0.0,
+                    accuracy = state.tuningAccuracy,
+                    isActive = state.detectedFrequency > 0
+                )
+            }
+            TunerMode.NEEDLE -> {
+                TunerGauge(
+                    cents = if (state.detectedFrequency > 0) state.cents else 0.0,
+                    accuracy = state.tuningAccuracy
+                )
+            }
+        }
 
-        // Cents display
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Cents + tuning hint
         if (state.detectedFrequency > 0) {
             Text(
-                text = String.format("%+.1f cents", state.cents),
+                text = String.format("%+.1f %s", state.cents, s(StringKey.CENTS)),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = FontFamily.Monospace,
                 color = accuracyColor
             )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Tuning direction hint
+            val hint = when {
+                abs(state.cents) <= 2.0 -> s(StringKey.IN_TUNE)
+                state.cents < 0 -> s(StringKey.TIGHTEN)
+                else -> s(StringKey.LOOSEN)
+            }
+            Text(
+                text = hint,
+                fontSize = 14.sp,
+                color = accuracyColor.copy(alpha = 0.8f)
+            )
         } else {
             Text(
-                text = "-- cents",
+                text = "-- ${s(StringKey.CENTS)}",
                 fontSize = 22.sp,
                 fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // Volume indicator
-        VolumeIndicator(volume = state.volume)
+        VolumeIndicator(volume = state.volume, label = s(StringKey.SIGNAL))
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -176,19 +180,12 @@ fun TunerScreen(
         if (state.readingsHistory.isNotEmpty()) {
             ReadingsHistory(
                 readings = state.readingsHistory,
+                label = s(StringKey.HISTORY),
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
         Spacer(modifier = Modifier.weight(1f))
-
-        // String selector
-        StringSelector(
-            selectedString = state.selectedString,
-            onStringSelected = onStringSelected
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         // Start/Stop button
         Button(
@@ -207,24 +204,12 @@ fun TunerScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
-                text = if (state.isListening) "STOP" else "START TUNING",
+                text = if (state.isListening) s(StringKey.STOP) else s(StringKey.START_TUNING),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-    }
-
-    // Calibration dialog
-    if (showCalibrationDialog) {
-        CalibrationDialog(
-            currentCalibration = state.a4Calibration,
-            onDismiss = { showCalibrationDialog = false },
-            onConfirm = { freq ->
-                onCalibrationChanged(freq)
-                showCalibrationDialog = false
-            }
-        )
     }
 }

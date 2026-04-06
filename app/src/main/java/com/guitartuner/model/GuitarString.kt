@@ -1,5 +1,10 @@
 package com.guitartuner.model
 
+import kotlin.math.abs
+import kotlin.math.log2
+import kotlin.math.pow
+import kotlin.math.round
+
 enum class GuitarString(
     val noteName: String,
     val frequency: Double,
@@ -10,31 +15,40 @@ enum class GuitarString(
     D3("D3", 146.83, 4),
     G3("G3", 196.00, 3),
     B3("B3", 246.94, 2),
-    E4("e4", 329.63, 1);
+    E4("E4", 329.63, 1);
 
     fun frequencyWithCalibration(a4Frequency: Double): Double {
-        val standardA4 = 440.0
-        val ratio = a4Frequency / standardA4
+        val ratio = a4Frequency / 440.0
         return frequency * ratio
     }
 
     companion object {
+        private val ALL_NOTE_NAMES = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
+
         fun findClosest(frequency: Double, a4Frequency: Double): GuitarString {
             return entries.minBy { entry ->
                 val calibrated = entry.frequencyWithCalibration(a4Frequency)
-                kotlin.math.abs(1200.0 * kotlin.math.log2(frequency / calibrated))
+                abs(1200.0 * log2(frequency / calibrated))
             }
         }
 
-        fun findClosestNote(frequency: Double): Pair<String, Double> {
-            val noteNames = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-            val a4 = 440.0
-            val semitonesFromA4 = 12.0 * kotlin.math.log2(frequency / a4)
-            val roundedSemitones = kotlin.math.round(semitonesFromA4).toInt()
-            val noteIndex = ((roundedSemitones % 12) + 12 + 9) % 12 // A is index 9 from C
-            val octave = 4 + (roundedSemitones + 9) / 12
-            val noteName = noteNames[noteIndex]
-            val exactFrequency = a4 * kotlin.math.pow(2.0, roundedSemitones / 12.0)
+        /**
+         * Find the closest chromatic note to a given frequency.
+         * Returns (noteName with octave, exact frequency of that note).
+         */
+        fun findClosestNote(frequency: Double, a4Frequency: Double = 440.0): Pair<String, Double> {
+            if (frequency <= 0) return "--" to 0.0
+
+            val semitonesFromA4 = 12.0 * log2(frequency / a4Frequency)
+            val roundedSemitones = round(semitonesFromA4).toInt()
+
+            // Use floorMod for correct wrapping with negative numbers
+            val noteIndex = Math.floorMod(roundedSemitones + 9, 12) // A=9 semitones from C
+            val octave = 4 + Math.floorDiv(roundedSemitones + 9, 12)
+
+            val noteName = ALL_NOTE_NAMES[noteIndex]
+            val exactFrequency = a4Frequency * 2.0.pow(roundedSemitones / 12.0)
+
             return "$noteName$octave" to exactFrequency
         }
     }

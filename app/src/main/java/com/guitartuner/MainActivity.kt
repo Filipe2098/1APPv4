@@ -6,11 +6,16 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.guitartuner.i18n.StringKey
+import com.guitartuner.i18n.Strings
+import com.guitartuner.ui.SettingsScreen
 import com.guitartuner.ui.TunerScreen
 import com.guitartuner.ui.theme.GuitarTunerTheme
 import com.guitartuner.viewmodel.TunerViewModel
@@ -25,29 +30,44 @@ class MainActivity : ComponentActivity() {
         if (isGranted) {
             viewModel.startListening()
         } else {
-            Toast.makeText(
-                this,
-                "Microphone permission is required for tuning",
-                Toast.LENGTH_LONG
-            ).show()
+            val msg = Strings.get(StringKey.MIC_PERMISSION, viewModel.state.value.language)
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         setContent {
             val state by viewModel.state.collectAsState()
+            var showSettings by remember { mutableStateOf(false) }
 
             GuitarTunerTheme(darkTheme = state.isDarkMode) {
-                TunerScreen(
-                    state = state,
-                    onStartListening = { startTuning() },
-                    onStopListening = { viewModel.stopListening() },
-                    onStringSelected = { viewModel.selectString(it) },
-                    onCalibrationChanged = { viewModel.setCalibration(it) },
-                    onToggleDarkMode = { viewModel.toggleDarkMode() }
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.systemBars)
+                ) {
+                    if (showSettings) {
+                        SettingsScreen(
+                            state = state,
+                            onBack = { showSettings = false },
+                            onTunerModeChanged = { viewModel.setTunerMode(it) },
+                            onDarkModeChanged = { viewModel.setDarkMode(it) },
+                            onLanguageChanged = { viewModel.setLanguage(it) },
+                            onCalibrationChanged = { viewModel.setCalibration(it) },
+                            onVibrationChanged = { viewModel.setVibrationEnabled(it) }
+                        )
+                    } else {
+                        TunerScreen(
+                            state = state,
+                            onStartListening = { startTuning() },
+                            onStopListening = { viewModel.stopListening() },
+                            onOpenSettings = { showSettings = true }
+                        )
+                    }
+                }
             }
         }
     }
