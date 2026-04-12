@@ -3,26 +3,35 @@ package com.guitartuner.ui.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 import com.guitartuner.model.TuningAccuracy
 import com.guitartuner.ui.theme.TunerGreen
 import com.guitartuner.ui.theme.TunerRed
 import com.guitartuner.ui.theme.TunerYellow
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 /**
- * Stroboscopic tuner display.
- * Bars scroll left when flat, right when sharp, and stop when in tune.
- * Speed of scrolling indicates how far off the tuning is.
+ * V4 Stroboscopic tuner: rotating radial stripes inside a circular dial.
+ *
+ * - Stripes rotate counter-clockwise when flat (cents < 0) and clockwise when sharp.
+ * - Rotation speed is proportional to |cents|; stripes come to a standstill when in tune.
+ * - Stripe color reflects tuning accuracy:
+ *     |cents| <= 5  -> green
+ *     |cents| <= 10 -> yellow
+ *     otherwise     -> red
  */
 @Composable
 fun StroboscopicTuner(
@@ -31,109 +40,99 @@ fun StroboscopicTuner(
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "strobe")
+    val transition = rememberInfiniteTransition(label = "strobe")
 
-    // Speed proportional to cents deviation: 0 cents = stopped, 50 cents = very fast
-    // Direction: negative cents (flat) = scroll left, positive (sharp) = scroll right
     val speed = if (isActive) cents.toFloat() else 0f
+    // Duration of one full rotation. Faster when further from pitch; effectively static when in tune.
+    val duration = if (abs(speed) < 0.5f) 20000
+        else (4000.0 / abs(speed).coerceAtLeast(1f)).toInt().coerceIn(120, 6000)
 
-    // Animate a phase offset that drives the stripe positions
-    // Duration inversely proportional to |cents| — faster when more off-tune
-    val duration = if (abs(speed) < 0.5f) 10000 else (2000.0 / abs(speed).coerceAtLeast(1f)).toInt().coerceIn(80, 3000)
-
-    val phase by infiniteTransition.animateFloat(
+    val rotation by transition.animateFloat(
         initialValue = 0f,
-        targetValue = if (speed >= 0) 1f else -1f,
+        targetValue = if (speed >= 0f) 360f else -360f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = duration, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "phase"
+        label = "rotation"
     )
 
-    val barColor = when (accuracy) {
-        TuningAccuracy.PERFECT -> TunerGreen
-        TuningAccuracy.CLOSE -> TunerYellow
-        TuningAccuracy.OFF -> TunerRed
+    val stripeColor: Color = when {
+        !isActive -> Color.Gray.copy(alpha = 0.3f)
+        abs(cents) <= 5.0 -> TunerGreen
+        abs(cents) <= 10.0 -> TunerYellow
+        else -> TunerRed
     }
 
     val bgColor = MaterialTheme.colorScheme.surface
+    val ringColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
 
-    Canvas(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .height(200.dp),
+        contentAlignment = Alignment.Center
     ) {
-        val width = size.width
-        val height = size.height
-        val stripeWidth = 28f
-        val gapWidth = 28f
-        val period = stripeWidth + gapWidth
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .clip(CircleShape)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val cx = w / 2f
+                val cy = h / 2f
+                val radius = min(w, h) / 2f
 
-        // Background
-        drawRect(color = bgColor)
+                // Background disk
+                drawCircle(color = bgColor, radius = radius, center = Offset(cx, cy))
 
-        if (!isActive) {
-            // Draw static center bars when inactive
-            val numBars = (width / period).toInt() + 2
-            val startX = (width - numBars * period) / 2
-            for (i in 0 until numBars) {
-                val x = startX + i * period
-                drawRect(
-                    color = Color.Gray.copy(alpha = 0.15f),
-                    topLeft = Offset(x, 0f),
-                    size = Size(stripeWidth, height)
+                // Radial stripes - rotated as a group
+                rotate(rotation, pivot = Offset(cx, cy)) {
+                    val stripeCount = 12
+                    val halfAngle = (Math.PI / stripeCount).toFloat() * 0.45f // thinner stripes w/ gaps
+                    for (i in 0 until stripeCount) {
+                        val angle = (i * 2.0 * Math.PI / stripeCount).toFloat()
+                        val a1 = angle - halfAngle
+                        val a2 = angle + halfAngle
+                        val path = Path().apply {
+                            moveTo(cx, cy)
+                            lineTo(
+                                cx + radius * cos(a1),
+                                cy + radius * sin(a1)
+                            )
+                            lineTo(
+                                cx + radius * cos(a2),
+                                cy + radius * sin(a2)
+                            )
+                            close()
+                        }
+                        drawPath(path, color = stripeColor.copy(alpha = 0.85f))
+                    }
+                }
+
+                // Outer ring
+                drawCircle(
+                    color = ringColor,
+                    radius = radius - 1f,
+                    center = Offset(cx, cy),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                )
+
+                // Inner hub
+                drawCircle(
+                    color = bgColor,
+                    radius = radius * 0.18f,
+                    center = Offset(cx, cy)
+                )
+                drawCircle(
+                    color = ringColor,
+                    radius = radius * 0.18f,
+                    center = Offset(cx, cy),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                 )
             }
-            return@Canvas
         }
-
-        // Calculate offset from phase
-        val offset = phase * period
-
-        // Draw scrolling bars
-        val numBars = (width / period).toInt() + 3
-        val alpha = if (accuracy == TuningAccuracy.PERFECT) 0.85f else 0.7f
-
-        for (i in -1 until numBars) {
-            val x = i * period + offset
-            if (x + stripeWidth < 0 || x > width) continue
-
-            drawRect(
-                color = barColor.copy(alpha = alpha),
-                topLeft = Offset(x, 0f),
-                size = Size(stripeWidth, height)
-            )
-        }
-
-        // Draw center marker line
-        drawLine(
-            color = Color.White.copy(alpha = 0.6f),
-            start = Offset(width / 2, 0f),
-            end = Offset(width / 2, height),
-            strokeWidth = 2f
-        )
-
-        // Draw edge fade gradients
-        val fadeWidth = 40f
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(bgColor, bgColor.copy(alpha = 0f)),
-                startX = 0f,
-                endX = fadeWidth
-            ),
-            topLeft = Offset.Zero,
-            size = Size(fadeWidth, height)
-        )
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colors = listOf(bgColor.copy(alpha = 0f), bgColor),
-                startX = width - fadeWidth,
-                endX = width
-            ),
-            topLeft = Offset(width - fadeWidth, 0f),
-            size = Size(fadeWidth, height)
-        )
     }
 }

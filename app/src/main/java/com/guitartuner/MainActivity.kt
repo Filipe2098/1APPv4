@@ -78,7 +78,8 @@ class MainActivity : ComponentActivity() {
                             onLanguageChanged = { viewModel.setLanguage(it) },
                             onCalibrationChanged = { viewModel.setCalibration(it) },
                             onVibrationChanged = { viewModel.setVibrationEnabled(it) },
-                            onGuitarTypeChanged = { viewModel.setGuitarType(it) }
+                            onInstrumentTypeChanged = { viewModel.setInstrumentType(it) },
+                            onStringCountChanged = { viewModel.setStringCount(it) }
                         )
                         2 -> MetronomeScreen(
                             state = state,

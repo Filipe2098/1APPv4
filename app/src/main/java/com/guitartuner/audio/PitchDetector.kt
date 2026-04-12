@@ -50,10 +50,10 @@ class PitchDetector(
         }
 
         // Step 3: Absolute threshold - find first dip below threshold, then local min
-        // Guitar range: E2 (82.41Hz) to ~E5 (659Hz) with harmonics
+        // Full instrument range: B0 (30.87 Hz, double bass) up to E5 (659 Hz, violin) with harmonics
         // tau = sampleRate / frequency
         val minTau = (sampleRate / 900.0).toInt().coerceAtLeast(2)   // Max ~900 Hz
-        val maxTau = (sampleRate / 40.0).toInt().coerceAtMost(halfBuffer - 2) // Min ~40 Hz (8-string F#1)
+        val maxTau = (sampleRate / 28.0).toInt().coerceAtMost(halfBuffer - 2) // Min ~28 Hz (Double Bass B0)
 
         var tauEstimate = -1
 
@@ -89,8 +89,8 @@ class PitchDetector(
 
         val frequency = if (betterTau > 0) sampleRate.toDouble() / betterTau else -1.0
 
-        // Reject frequencies outside guitar range
-        if (frequency < 40.0 || frequency > 900.0) return -1.0
+        // Reject frequencies outside supported instrument range
+        if (frequency < 28.0 || frequency > 900.0) return -1.0
 
         return frequency
     }

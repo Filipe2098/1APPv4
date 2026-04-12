@@ -40,8 +40,8 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
     private var lastVibrateTime = 0L
     private val historyMaxSize = 50
 
-    // Median filter buffer for frequency smoothing
-    private val recentFrequencies = ArrayDeque<Double>(5)
+    // Median filter buffer: larger for bowed instruments (extra smoothing)
+    private val recentFrequencies = ArrayDeque<Double>(7)
 
     init {
         metronomeEngine.setOnBeatListener { beat ->
@@ -104,9 +104,20 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
         prefsManager.vibrationEnabled = enabled
     }
 
-    fun setGuitarType(type: GuitarType) {
-        _state.update { it.copy(guitarType = type) }
-        prefsManager.guitarType = type
+    fun setInstrumentType(type: InstrumentType) {
+        // Keep current count if still valid, else use the instrument's default.
+        val current = _state.value.stringCount
+        val newCount = if (current in type.stringCountOptions) current else type.defaultStringCount
+        _state.update { it.copy(instrumentType = type, stringCount = newCount) }
+        prefsManager.instrumentType = type
+        prefsManager.stringCount = newCount
+    }
+
+    fun setStringCount(count: Int) {
+        val type = _state.value.instrumentType
+        if (count !in type.stringCountOptions) return
+        _state.update { it.copy(stringCount = count) }
+        prefsManager.stringCount = count
     }
 
     // Metronome controls
@@ -147,9 +158,12 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // Median filter: collect last 5 readings, use median for stability
+        val currentState = _state.value
+        val filterSize = if (currentState.isHighPrecision) 7 else 5
+
+        // Median filter for stability
         recentFrequencies.addLast(frequency)
-        if (recentFrequencies.size > 5) recentFrequencies.removeFirst()
+        while (recentFrequencies.size > filterSize) recentFrequencies.removeFirst()
 
         val smoothedFrequency = if (recentFrequencies.size >= 3) {
             val sorted = recentFrequencies.sorted()
@@ -158,15 +172,14 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
             frequency
         }
 
-        val currentState = _state.value
-
         // Chromatic note detection - find the closest note in the full chromatic scale
         val (chromaticNote, chromaticFreq) = GuitarString.findClosestNote(
             smoothedFrequency, currentState.a4Calibration
         )
 
         val cents = 1200.0 * log2(smoothedFrequency / chromaticFreq)
-        val displayCents = cents.coerceIn(-50.0, 50.0)
+        val range = currentState.centsRange
+        val displayCents = cents.coerceIn(-range, range)
 
         val newHistory = (currentState.readingsHistory + displayCents).takeLast(historyMaxSize)
 

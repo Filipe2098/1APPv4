@@ -115,39 +115,55 @@ fun MetronomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // BPM controls
+            // BPM controls: -5  -1  play/stop  +1  +5
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 FilledIconButton(
-                    onClick = { onBpmChanged(state.metronomeBpm - 10) },
-                    modifier = Modifier.size(44.dp)
+                    onClick = { onBpmChanged(state.metronomeBpm - 5) },
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Text("-10", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("-5", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
 
                 FilledIconButton(
                     onClick = { onBpmChanged(state.metronomeBpm - 1) },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Text("-1", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Button(
+                    onClick = onToggleMetronome,
+                    modifier = Modifier
+                        .height(56.dp)
+                        .width(80.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (state.metronomeIsPlaying) TunerRed else TunerGreen
+                    ),
+                    shape = RoundedCornerShape(28.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = if (state.metronomeIsPlaying) "\u25A0" else "\u25B6",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 FilledIconButton(
                     onClick = { onBpmChanged(state.metronomeBpm + 1) },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Text("+1", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
 
                 FilledIconButton(
-                    onClick = { onBpmChanged(state.metronomeBpm + 10) },
-                    modifier = Modifier.size(44.dp)
+                    onClick = { onBpmChanged(state.metronomeBpm + 5) },
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Text("+10", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("+5", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -195,30 +211,7 @@ fun MetronomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Play/Stop button
-            Button(
-                onClick = onToggleMetronome,
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (state.metronomeIsPlaying)
-                        TunerRed
-                    else
-                        TunerGreen
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = if (state.metronomeIsPlaying) s(StringKey.STOP) else s(StringKey.PLAY),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // BPM range hint
             Text(

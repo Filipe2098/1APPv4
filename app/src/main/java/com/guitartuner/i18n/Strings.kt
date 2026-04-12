@@ -39,6 +39,15 @@ enum class StringKey {
     STRINGS,
     METRONOME,
     TIME_SIGNATURE,
+    INSTRUMENT,
+    STRING_COUNT,
+    GUITAR,
+    BASS,
+    VIOLIN,
+    VIOLA,
+    CELLO,
+    DOUBLE_BASS,
+    HIGH_PRECISION,
 }
 
 private val translations: Map<StringKey, Map<AppLanguage, String>> = mapOf(
@@ -371,5 +380,104 @@ private val translations: Map<StringKey, Map<AppLanguage, String>> = mapOf(
         AppLanguage.CHINESE to "拍号",
         AppLanguage.JAPANESE to "拍子",
         AppLanguage.RUSSIAN to "Размер"
+    ),
+    StringKey.INSTRUMENT to mapOf(
+        AppLanguage.PORTUGUESE to "Instrumento",
+        AppLanguage.ENGLISH to "Instrument",
+        AppLanguage.POLISH to "Instrument",
+        AppLanguage.SPANISH to "Instrumento",
+        AppLanguage.FRENCH to "Instrument",
+        AppLanguage.GERMAN to "Instrument",
+        AppLanguage.CHINESE to "乐器",
+        AppLanguage.JAPANESE to "楽器",
+        AppLanguage.RUSSIAN to "Инструмент"
+    ),
+    StringKey.STRING_COUNT to mapOf(
+        AppLanguage.PORTUGUESE to "Número de cordas",
+        AppLanguage.ENGLISH to "String count",
+        AppLanguage.POLISH to "Liczba strun",
+        AppLanguage.SPANISH to "Número de cuerdas",
+        AppLanguage.FRENCH to "Nombre de cordes",
+        AppLanguage.GERMAN to "Anzahl der Saiten",
+        AppLanguage.CHINESE to "弦数",
+        AppLanguage.JAPANESE to "弦の数",
+        AppLanguage.RUSSIAN to "Количество струн"
+    ),
+    StringKey.GUITAR to mapOf(
+        AppLanguage.PORTUGUESE to "Guitarra",
+        AppLanguage.ENGLISH to "Guitar",
+        AppLanguage.POLISH to "Gitara",
+        AppLanguage.SPANISH to "Guitarra",
+        AppLanguage.FRENCH to "Guitare",
+        AppLanguage.GERMAN to "Gitarre",
+        AppLanguage.CHINESE to "吉他",
+        AppLanguage.JAPANESE to "ギター",
+        AppLanguage.RUSSIAN to "Гитара"
+    ),
+    StringKey.BASS to mapOf(
+        AppLanguage.PORTUGUESE to "Baixo",
+        AppLanguage.ENGLISH to "Bass",
+        AppLanguage.POLISH to "Bas",
+        AppLanguage.SPANISH to "Bajo",
+        AppLanguage.FRENCH to "Basse",
+        AppLanguage.GERMAN to "Bass",
+        AppLanguage.CHINESE to "贝斯",
+        AppLanguage.JAPANESE to "ベース",
+        AppLanguage.RUSSIAN to "Бас"
+    ),
+    StringKey.VIOLIN to mapOf(
+        AppLanguage.PORTUGUESE to "Violino",
+        AppLanguage.ENGLISH to "Violin",
+        AppLanguage.POLISH to "Skrzypce",
+        AppLanguage.SPANISH to "Violín",
+        AppLanguage.FRENCH to "Violon",
+        AppLanguage.GERMAN to "Violine",
+        AppLanguage.CHINESE to "小提琴",
+        AppLanguage.JAPANESE to "バイオリン",
+        AppLanguage.RUSSIAN to "Скрипка"
+    ),
+    StringKey.VIOLA to mapOf(
+        AppLanguage.PORTUGUESE to "Viola",
+        AppLanguage.ENGLISH to "Viola",
+        AppLanguage.POLISH to "Altówka",
+        AppLanguage.SPANISH to "Viola",
+        AppLanguage.FRENCH to "Alto",
+        AppLanguage.GERMAN to "Bratsche",
+        AppLanguage.CHINESE to "中提琴",
+        AppLanguage.JAPANESE to "ビオラ",
+        AppLanguage.RUSSIAN to "Альт"
+    ),
+    StringKey.CELLO to mapOf(
+        AppLanguage.PORTUGUESE to "Violoncelo",
+        AppLanguage.ENGLISH to "Cello",
+        AppLanguage.POLISH to "Wiolonczela",
+        AppLanguage.SPANISH to "Violonchelo",
+        AppLanguage.FRENCH to "Violoncelle",
+        AppLanguage.GERMAN to "Cello",
+        AppLanguage.CHINESE to "大提琴",
+        AppLanguage.JAPANESE to "チェロ",
+        AppLanguage.RUSSIAN to "Виолончель"
+    ),
+    StringKey.DOUBLE_BASS to mapOf(
+        AppLanguage.PORTUGUESE to "Contrabaixo",
+        AppLanguage.ENGLISH to "Double Bass",
+        AppLanguage.POLISH to "Kontrabas",
+        AppLanguage.SPANISH to "Contrabajo",
+        AppLanguage.FRENCH to "Contrebasse",
+        AppLanguage.GERMAN to "Kontrabass",
+        AppLanguage.CHINESE to "低音提琴",
+        AppLanguage.JAPANESE to "コントラバス",
+        AppLanguage.RUSSIAN to "Контрабас"
+    ),
+    StringKey.HIGH_PRECISION to mapOf(
+        AppLanguage.PORTUGUESE to "ALTA PRECISÃO",
+        AppLanguage.ENGLISH to "HIGH PRECISION",
+        AppLanguage.POLISH to "WYSOKA PRECYZJA",
+        AppLanguage.SPANISH to "ALTA PRECISIÓN",
+        AppLanguage.FRENCH to "HAUTE PRÉCISION",
+        AppLanguage.GERMAN to "HOCHPRÄZISION",
+        AppLanguage.CHINESE to "高精度",
+        AppLanguage.JAPANESE to "高精度",
+        AppLanguage.RUSSIAN to "ВЫСОКАЯ ТОЧНОСТЬ"
     ),
 )

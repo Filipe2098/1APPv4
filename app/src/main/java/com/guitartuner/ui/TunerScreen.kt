@@ -88,12 +88,30 @@ fun TunerScreen(
             }
         }
 
-        // Calibration + guitar type info
+        // Calibration + instrument info
         Text(
-            text = "A4 = ${state.a4Calibration.toInt()} Hz  |  ${state.guitarType.stringCount} ${s(StringKey.STRINGS)}",
+            text = "A4 = ${state.a4Calibration.toInt()} Hz  |  ${state.stringCount} ${s(StringKey.STRINGS)}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f)
         )
+
+        // HIGH PRECISION badge for bowed instruments
+        if (state.isHighPrecision) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = s(StringKey.HIGH_PRECISION),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -206,13 +224,14 @@ fun TunerScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Start/Stop button
+        // Start/Stop button - identical styling across tuner modes
         Button(
             onClick = {
                 if (state.isListening) onStopListening() else onStartListening()
             },
             modifier = Modifier
                 .fillMaxWidth()
+                .defaultMinSize(minHeight = 56.dp)
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (state.isListening)
@@ -220,12 +239,13 @@ fun TunerScreen(
                 else
                     MaterialTheme.colorScheme.primary
             ),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(999.dp)
         ) {
             Text(
                 text = if (state.isListening) s(StringKey.STOP) else s(StringKey.START_TUNING),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
             )
         }
 

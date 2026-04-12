@@ -35,24 +35,35 @@ class PreferencesManager(context: Context) {
         get() = prefs.getBoolean("vibration_enabled", true)
         set(value) = prefs.edit().putBoolean("vibration_enabled", value).apply()
 
-    var guitarType: GuitarType
+    var instrumentType: InstrumentType
         get() = try {
-            GuitarType.valueOf(prefs.getString("guitar_type", GuitarType.SIX_STRING.name) ?: GuitarType.SIX_STRING.name)
-        } catch (_: Exception) { GuitarType.SIX_STRING }
-        set(value) = prefs.edit().putString("guitar_type", value.name).apply()
+            InstrumentType.valueOf(
+                prefs.getString("instrument_type", InstrumentType.GUITARRA.name)
+                    ?: InstrumentType.GUITARRA.name
+            )
+        } catch (_: Exception) { InstrumentType.GUITARRA }
+        set(value) = prefs.edit().putString("instrument_type", value.name).apply()
+
+    var stringCount: Int
+        get() = prefs.getInt("string_count", 6)
+        set(value) = prefs.edit().putInt("string_count", value).apply()
 
     var metronomeBpm: Int
         get() = prefs.getInt("metronome_bpm", 120)
         set(value) = prefs.edit().putInt("metronome_bpm", value).apply()
 
     fun loadState(): TunerState {
+        val instrument = instrumentType
+        val storedCount = stringCount
+        val count = if (storedCount in instrument.stringCountOptions) storedCount else instrument.defaultStringCount
         return TunerState(
             themeMode = themeMode,
             tunerMode = tunerMode,
             language = language,
             a4Calibration = a4Calibration,
             vibrationEnabled = vibrationEnabled,
-            guitarType = guitarType,
+            instrumentType = instrument,
+            stringCount = count,
             metronomeBpm = metronomeBpm
         )
     }

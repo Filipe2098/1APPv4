@@ -3,6 +3,7 @@ package com.guitartuner.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,7 +32,8 @@ fun SettingsScreen(
     onLanguageChanged: (AppLanguage) -> Unit,
     onCalibrationChanged: (Double) -> Unit,
     onVibrationChanged: (Boolean) -> Unit,
-    onGuitarTypeChanged: (GuitarType) -> Unit,
+    onInstrumentTypeChanged: (InstrumentType) -> Unit,
+    onStringCountChanged: (Int) -> Unit,
 ) {
     val lang = state.language
 
@@ -74,13 +76,13 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ChoiceChip(
+                    PillChip(
                         label = s(StringKey.STROBOSCOPIC),
                         selected = state.tunerMode == TunerMode.STROBOSCOPIC,
                         onClick = { onTunerModeChanged(TunerMode.STROBOSCOPIC) },
                         modifier = Modifier.weight(1f)
                     )
-                    ChoiceChip(
+                    PillChip(
                         label = s(StringKey.NEEDLE),
                         selected = state.tunerMode == TunerMode.NEEDLE,
                         onClick = { onTunerModeChanged(TunerMode.NEEDLE) },
@@ -89,17 +91,45 @@ fun SettingsScreen(
                 }
             }
 
-            // GUITAR TYPE
-            SettingsSection(title = s(StringKey.GUITAR_TYPE)) {
+            // INSTRUMENT
+            SettingsSection(title = s(StringKey.INSTRUMENT)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    InstrumentType.entries.forEach { type ->
+                        PillChip(
+                            label = s(instrumentLabelKey(type)),
+                            selected = state.instrumentType == type,
+                            onClick = { onInstrumentTypeChanged(type) }
+                        )
+                    }
+                }
+                if (state.isHighPrecision) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = s(StringKey.HIGH_PRECISION),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+
+            // STRING COUNT
+            SettingsSection(title = s(StringKey.STRING_COUNT)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    GuitarType.entries.forEach { type ->
-                        ChoiceChip(
-                            label = "${type.stringCount} ${s(StringKey.STRINGS)}",
-                            selected = state.guitarType == type,
-                            onClick = { onGuitarTypeChanged(type) },
+                    state.instrumentType.stringCountOptions.forEach { count ->
+                        PillChip(
+                            label = "$count ${s(StringKey.STRINGS)}",
+                            selected = state.stringCount == count,
+                            onClick = { onStringCountChanged(count) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -112,19 +142,19 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ChoiceChip(
+                    PillChip(
                         label = s(StringKey.AUTO),
                         selected = state.themeMode == ThemeMode.AUTO,
                         onClick = { onThemeModeChanged(ThemeMode.AUTO) },
                         modifier = Modifier.weight(1f)
                     )
-                    ChoiceChip(
+                    PillChip(
                         label = s(StringKey.DARK),
                         selected = state.themeMode == ThemeMode.DARK,
                         onClick = { onThemeModeChanged(ThemeMode.DARK) },
                         modifier = Modifier.weight(1f)
                     )
-                    ChoiceChip(
+                    PillChip(
                         label = s(StringKey.LIGHT),
                         selected = state.themeMode == ThemeMode.LIGHT,
                         onClick = { onThemeModeChanged(ThemeMode.LIGHT) },
@@ -174,6 +204,15 @@ fun SettingsScreen(
     }
 }
 
+private fun instrumentLabelKey(type: InstrumentType): StringKey = when (type) {
+    InstrumentType.GUITARRA -> StringKey.GUITAR
+    InstrumentType.BAIXO -> StringKey.BASS
+    InstrumentType.VIOLINO -> StringKey.VIOLIN
+    InstrumentType.VIOLA -> StringKey.VIOLA
+    InstrumentType.VIOLONCELO -> StringKey.CELLO
+    InstrumentType.CONTRABAIXO -> StringKey.DOUBLE_BASS
+}
+
 @Composable
 private fun SettingsSection(
     title: String,
@@ -193,8 +232,9 @@ private fun SettingsSection(
     Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
 }
 
+/** V4 pill-shape chip (high border-radius). */
 @Composable
-private fun ChoiceChip(
+private fun PillChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -212,17 +252,25 @@ private fun ChoiceChip(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(999.dp))
             .background(bgColor)
+            .then(
+                if (!selected) Modifier.border(
+                    1.dp,
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    RoundedCornerShape(999.dp)
+                ) else Modifier
+            )
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             color = textColor,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 14.sp
+            fontSize = 14.sp,
+            maxLines = 1
         )
     }
 }

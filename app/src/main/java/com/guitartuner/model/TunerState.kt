@@ -10,12 +10,6 @@ enum class ThemeMode {
     AUTO, DARK, LIGHT
 }
 
-enum class GuitarType(val stringCount: Int, val label: String) {
-    SIX_STRING(6, "6"),
-    SEVEN_STRING(7, "7"),
-    EIGHT_STRING(8, "8")
-}
-
 enum class AppLanguage(val code: String, val flag: String, val displayName: String) {
     PORTUGUESE("pt", "\uD83C\uDDF5\uD83C\uDDF9", "Português"),
     ENGLISH("en", "\uD83C\uDDEC\uD83C\uDDE7", "English"),
@@ -44,7 +38,8 @@ data class TunerState(
     val tunerMode: TunerMode = TunerMode.STROBOSCOPIC,
     val language: AppLanguage = AppLanguage.PORTUGUESE,
     val vibrationEnabled: Boolean = true,
-    val guitarType: GuitarType = GuitarType.SIX_STRING,
+    val instrumentType: InstrumentType = InstrumentType.GUITARRA,
+    val stringCount: Int = 6,
     val readingsHistory: List<Double> = emptyList(),
     // Metronome
     val metronomeBpm: Int = 120,
@@ -52,6 +47,14 @@ data class TunerState(
     val metronomeBeat: Int = 0, // current beat index for visual
     val metronomeBeatsPerMeasure: Int = 4
 ) {
+    val isHighPrecision: Boolean
+        get() = instrumentType.highPrecision
+
+    // Bowed instruments: ±20 cents range gives fine control
+    // Fretted instruments: ±50 cents range is standard
+    val centsRange: Double
+        get() = if (isHighPrecision) 20.0 else 50.0
+
     val tuningAccuracy: TuningAccuracy
         get() = when {
             detectedFrequency <= 0 -> TuningAccuracy.OFF
