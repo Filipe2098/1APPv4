@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guitartuner.i18n.StringKey
@@ -34,172 +36,202 @@ fun SettingsScreen(
     onVibrationChanged: (Boolean) -> Unit,
     onInstrumentTypeChanged: (InstrumentType) -> Unit,
     onStringCountChanged: (Int) -> Unit,
+    onShowAllLanguagesChanged: (Boolean) -> Unit,
+    onToggleFavoriteLanguage: (AppLanguage) -> Unit,
 ) {
     val lang = state.language
 
     fun s(key: StringKey) = Strings.get(key, lang)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = s(StringKey.SETTINGS),
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = s(StringKey.BACK)
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background
-            )
-        )
+    val layoutDir = if (state.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDir) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // TUNER MODE
-            SettingsSection(title = s(StringKey.TUNER_MODE)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    PillChip(
-                        label = s(StringKey.STROBOSCOPIC),
-                        selected = state.tunerMode == TunerMode.STROBOSCOPIC,
-                        onClick = { onTunerModeChanged(TunerMode.STROBOSCOPIC) },
-                        modifier = Modifier.weight(1f)
+            TopAppBar(
+                title = {
+                    Text(
+                        text = s(StringKey.SETTINGS),
+                        fontWeight = FontWeight.Bold
                     )
-                    PillChip(
-                        label = s(StringKey.NEEDLE),
-                        selected = state.tunerMode == TunerMode.NEEDLE,
-                        onClick = { onTunerModeChanged(TunerMode.NEEDLE) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // INSTRUMENT
-            SettingsSection(title = s(StringKey.INSTRUMENT)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    InstrumentType.entries.forEach { type ->
-                        PillChip(
-                            label = s(instrumentLabelKey(type)),
-                            selected = state.instrumentType == type,
-                            onClick = { onInstrumentTypeChanged(type) }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = s(StringKey.BACK)
                         )
                     }
-                }
-                if (state.isHighPrecision) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = s(StringKey.HIGH_PRECISION),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
 
-            // STRING COUNT
-            SettingsSection(title = s(StringKey.STRING_COUNT)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    state.instrumentType.stringCountOptions.forEach { count ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+            ) {
+                // TUNER MODE
+                SettingsSection(title = s(StringKey.TUNER_MODE)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         PillChip(
-                            label = "$count ${s(StringKey.STRINGS)}",
-                            selected = state.stringCount == count,
-                            onClick = { onStringCountChanged(count) },
+                            label = s(StringKey.STROBOSCOPIC),
+                            selected = state.tunerMode == TunerMode.STROBOSCOPIC,
+                            onClick = { onTunerModeChanged(TunerMode.STROBOSCOPIC) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PillChip(
+                            label = s(StringKey.NEEDLE),
+                            selected = state.tunerMode == TunerMode.NEEDLE,
+                            onClick = { onTunerModeChanged(TunerMode.NEEDLE) },
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
-            }
 
-            // THEME
-            SettingsSection(title = s(StringKey.THEME)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    PillChip(
-                        label = s(StringKey.AUTO),
-                        selected = state.themeMode == ThemeMode.AUTO,
-                        onClick = { onThemeModeChanged(ThemeMode.AUTO) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    PillChip(
-                        label = s(StringKey.DARK),
-                        selected = state.themeMode == ThemeMode.DARK,
-                        onClick = { onThemeModeChanged(ThemeMode.DARK) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    PillChip(
-                        label = s(StringKey.LIGHT),
-                        selected = state.themeMode == ThemeMode.LIGHT,
-                        onClick = { onThemeModeChanged(ThemeMode.LIGHT) },
-                        modifier = Modifier.weight(1f)
+                // INSTRUMENT
+                SettingsSection(title = s(StringKey.INSTRUMENT)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        InstrumentType.entries.forEach { type ->
+                            PillChip(
+                                label = s(instrumentLabelKey(type)),
+                                selected = state.instrumentType == type,
+                                onClick = { onInstrumentTypeChanged(type) }
+                            )
+                        }
+                    }
+                    if (state.isHighPrecision) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = s(StringKey.HIGH_PRECISION),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+
+                // STRING COUNT
+                SettingsSection(title = s(StringKey.STRING_COUNT)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        state.instrumentType.stringCountOptions.forEach { count ->
+                            PillChip(
+                                label = "$count ${s(StringKey.STRINGS)}",
+                                selected = state.stringCount == count,
+                                onClick = { onStringCountChanged(count) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // THEME
+                SettingsSection(title = s(StringKey.THEME)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PillChip(
+                            label = s(StringKey.AUTO),
+                            selected = state.themeMode == ThemeMode.AUTO,
+                            onClick = { onThemeModeChanged(ThemeMode.AUTO) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PillChip(
+                            label = s(StringKey.DARK),
+                            selected = state.themeMode == ThemeMode.DARK,
+                            onClick = { onThemeModeChanged(ThemeMode.DARK) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PillChip(
+                            label = s(StringKey.LIGHT),
+                            selected = state.themeMode == ThemeMode.LIGHT,
+                            onClick = { onThemeModeChanged(ThemeMode.LIGHT) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                // LANGUAGE
+                SettingsSection(title = s(StringKey.LANGUAGE)) {
+                    // Show all / Favorites toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (state.showAllLanguages) s(StringKey.SHOW_ALL_LANGUAGES)
+                            else s(StringKey.SHOW_FAVORITES),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                        Switch(
+                            checked = state.showAllLanguages,
+                            onCheckedChange = onShowAllLanguagesChanged
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LanguageGrid(
+                        languages = state.visibleLanguages,
+                        selectedLanguage = state.language,
+                        favoriteLanguages = state.favoriteLanguages,
+                        showAllLanguages = state.showAllLanguages,
+                        onLanguageSelected = onLanguageChanged,
+                        onToggleFavorite = onToggleFavoriteLanguage
                     )
                 }
-            }
 
-            // LANGUAGE
-            SettingsSection(title = s(StringKey.LANGUAGE)) {
-                LanguageGrid(
-                    selectedLanguage = state.language,
-                    onLanguageSelected = onLanguageChanged
-                )
-            }
-
-            // CALIBRATION
-            SettingsSection(title = s(StringKey.CALIBRATION)) {
-                CalibrationControl(
-                    calibration = state.a4Calibration,
-                    onCalibrationChanged = onCalibrationChanged,
-                    lang = lang
-                )
-            }
-
-            // VIBRATION
-            SettingsSection(title = s(StringKey.VIBRATION)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = s(StringKey.VIBRATION_DESC),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                    )
-                    Switch(
-                        checked = state.vibrationEnabled,
-                        onCheckedChange = onVibrationChanged
+                // CALIBRATION
+                SettingsSection(title = s(StringKey.CALIBRATION)) {
+                    CalibrationControl(
+                        calibration = state.a4Calibration,
+                        onCalibrationChanged = onCalibrationChanged,
+                        lang = lang
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                // VIBRATION
+                SettingsSection(title = s(StringKey.VIBRATION)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = s(StringKey.VIBRATION_DESC),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
+                        Switch(
+                            checked = state.vibrationEnabled,
+                            onCheckedChange = onVibrationChanged
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }
@@ -229,10 +261,9 @@ private fun SettingsSection(
         Spacer(modifier = Modifier.height(8.dp))
         content()
     }
-    Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
+    HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
 }
 
-/** V4 pill-shape chip (high border-radius). */
 @Composable
 private fun PillChip(
     label: String,
@@ -277,10 +308,13 @@ private fun PillChip(
 
 @Composable
 private fun LanguageGrid(
+    languages: List<AppLanguage>,
     selectedLanguage: AppLanguage,
-    onLanguageSelected: (AppLanguage) -> Unit
+    favoriteLanguages: Set<AppLanguage>,
+    showAllLanguages: Boolean,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    onToggleFavorite: (AppLanguage) -> Unit
 ) {
-    val languages = AppLanguage.entries
     val rows = languages.chunked(3)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -291,6 +325,8 @@ private fun LanguageGrid(
             ) {
                 row.forEach { lang ->
                     val isSelected = lang == selectedLanguage
+                    val isFavorite = lang in favoriteLanguages
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -307,19 +343,41 @@ private fun LanguageGrid(
                                 ) else Modifier
                             )
                             .clickable { onLanguageSelected(lang) }
-                            .padding(vertical = 10.dp, horizontal = 8.dp),
+                            .padding(vertical = 8.dp, horizontal = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "${lang.flag} ${lang.displayName}",
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.onPrimary
-                            else
-                                MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "${lang.flag} ${lang.displayName}",
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.onPrimary
+                                else
+                                    MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+
+                            if (showAllLanguages) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = if (isFavorite) "\u2605" else "\u2606",
+                                    fontSize = 14.sp,
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                    else
+                                        MaterialTheme.colorScheme.primary.copy(
+                                            alpha = if (isFavorite) 1f else 0.3f
+                                        ),
+                                    modifier = Modifier.clickable { onToggleFavorite(lang) }
+                                )
+                            }
+                        }
                     }
                 }
                 repeat(3 - row.size) {

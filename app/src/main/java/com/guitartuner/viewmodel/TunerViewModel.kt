@@ -104,6 +104,18 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
         prefsManager.vibrationEnabled = enabled
     }
 
+    fun setShowAllLanguages(show: Boolean) {
+        _state.update { it.copy(showAllLanguages = show) }
+        prefsManager.showAllLanguages = show
+    }
+
+    fun toggleFavoriteLanguage(lang: AppLanguage) {
+        val current = _state.value.favoriteLanguages
+        val updated = if (lang in current) current - lang else current + lang
+        _state.update { it.copy(favoriteLanguages = updated) }
+        prefsManager.favoriteLanguages = updated
+    }
+
     fun setInstrumentType(type: InstrumentType) {
         // Keep current count if still valid, else use the instrument's default.
         val current = _state.value.stringCount
