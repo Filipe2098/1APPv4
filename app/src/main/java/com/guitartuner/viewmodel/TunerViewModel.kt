@@ -111,7 +111,8 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleFavoriteLanguage(lang: AppLanguage) {
         val current = _state.value.favoriteLanguages
-        val updated = if (lang in current) current - lang else current + lang
+        val key = lang.name
+        val updated = if (key in current) current - key else current + key
         _state.update { it.copy(favoriteLanguages = updated) }
         prefsManager.favoriteLanguages = updated
     }

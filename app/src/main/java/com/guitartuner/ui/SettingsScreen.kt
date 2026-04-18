@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -261,7 +262,8 @@ private fun SettingsSection(
         Spacer(modifier = Modifier.height(8.dp))
         content()
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
+    @Suppress("DEPRECATION")
+    Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
 }
 
 @Composable
