@@ -2,6 +2,7 @@ package com.guitartuner
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -13,10 +14,13 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.guitartuner.i18n.StringKey
 import com.guitartuner.i18n.Strings
 import com.guitartuner.model.ThemeMode
+import com.guitartuner.service.TunerForegroundService
 import com.guitartuner.ui.MetronomeScreen
 import com.guitartuner.ui.SettingsScreen
 import com.guitartuner.ui.TunerScreen
@@ -31,6 +35,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
+            startForegroundService(TunerForegroundService.startIntent(this))
             viewModel.startListening()
         } else {
             val msg = Strings.get(StringKey.MIC_PERMISSION, viewModel.state.value.language)
@@ -56,6 +61,16 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
             }
 
+            val view = LocalView.current
+            if (!view.isInEditMode) {
+                SideEffect {
+                    val ctrl = WindowInsetsControllerCompat(window, view)
+                    // Light icons on dark bars; dark icons on light bars.
+                    ctrl.isAppearanceLightStatusBars = !useDarkTheme
+                    ctrl.isAppearanceLightNavigationBars = !useDarkTheme
+                }
+            }
+
             GuitarTunerTheme(darkTheme = useDarkTheme) {
                 Box(
                     modifier = Modifier
@@ -66,7 +81,7 @@ class MainActivity : ComponentActivity() {
                         0 -> TunerScreen(
                             state = state,
                             onStartListening = { startTuning() },
-                            onStopListening = { viewModel.stopListening() },
+                            onStopListening = { stopTuning() },
                             onOpenSettings = { currentScreen = 1 },
                             onOpenMetronome = { currentScreen = 2 }
                         )
@@ -99,6 +114,7 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(
                 this, Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED -> {
+                startForegroundService(TunerForegroundService.startIntent(this))
                 viewModel.startListening()
             }
             else -> {
@@ -107,8 +123,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun stopTuning() {
+        viewModel.stopListening()
+        stopService(TunerForegroundService.stopIntent(this))
+    }
+
     override fun onStop() {
         super.onStop()
-        viewModel.stopListening()
+        // Don't stop listening on screen-off — the foreground service keeps the mic alive.
+        // Only stop when the user navigates away entirely (onDestroy).
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopTuning()
     }
 }

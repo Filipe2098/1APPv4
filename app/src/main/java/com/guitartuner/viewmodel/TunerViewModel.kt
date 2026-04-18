@@ -41,7 +41,7 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
     private val historyMaxSize = 50
 
     // Median filter buffer: larger for bowed instruments (extra smoothing)
-    private val recentFrequencies = ArrayDeque<Double>(7)
+    private val recentFrequencies = ArrayDeque<Double>(9)
 
     init {
         metronomeEngine.setOnBeatListener { beat ->
@@ -159,7 +159,7 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val currentState = _state.value
-        val filterSize = if (currentState.isHighPrecision) 7 else 5
+        val filterSize = if (currentState.isHighPrecision) 9 else 7
 
         // Median filter for stability
         recentFrequencies.addLast(frequency)
