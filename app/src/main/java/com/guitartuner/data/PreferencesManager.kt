@@ -22,9 +22,14 @@ class PreferencesManager(context: Context) {
         set(value) = prefs.edit().putString("tuner_mode", value.name).apply()
 
     var language: AppLanguage
-        get() = try {
-            AppLanguage.valueOf(prefs.getString("language", AppLanguage.PORTUGUESE.name) ?: AppLanguage.PORTUGUESE.name)
-        } catch (_: Exception) { AppLanguage.PORTUGUESE }
+        get() {
+            val raw = prefs.getString("language", AppLanguage.PORTUGUESE.name) ?: AppLanguage.PORTUGUESE.name
+            // Migrate old "CHINESE" value to CHINESE_SIMPLIFIED
+            val name = if (raw == "CHINESE") AppLanguage.CHINESE_SIMPLIFIED.name else raw
+            return try {
+                AppLanguage.valueOf(name)
+            } catch (_: Exception) { AppLanguage.PORTUGUESE }
+        }
         set(value) = prefs.edit().putString("language", value.name).apply()
 
     var a4Calibration: Double
@@ -52,6 +57,21 @@ class PreferencesManager(context: Context) {
         get() = prefs.getInt("metronome_bpm", 120)
         set(value) = prefs.edit().putInt("metronome_bpm", value).apply()
 
+    var showAllLanguages: Boolean
+        get() = prefs.getBoolean("show_all_languages", false)
+        set(value) = prefs.edit().putBoolean("show_all_languages", value).apply()
+
+    var favoriteLanguages: Set<String>
+        get() = prefs.getStringSet("favorite_languages", null)
+            ?: setOf(
+                AppLanguage.PORTUGUESE.name,
+                AppLanguage.ENGLISH.name,
+                AppLanguage.SPANISH.name,
+                AppLanguage.FRENCH.name,
+                AppLanguage.GERMAN.name,
+            )
+        set(value) = prefs.edit().putStringSet("favorite_languages", value).apply()
+
     fun loadState(): TunerState {
         val instrument = instrumentType
         val storedCount = stringCount
@@ -64,7 +84,9 @@ class PreferencesManager(context: Context) {
             vibrationEnabled = vibrationEnabled,
             instrumentType = instrument,
             stringCount = count,
-            metronomeBpm = metronomeBpm
+            metronomeBpm = metronomeBpm,
+            showAllLanguages = showAllLanguages,
+            favoriteLanguages = favoriteLanguages
         )
     }
 }

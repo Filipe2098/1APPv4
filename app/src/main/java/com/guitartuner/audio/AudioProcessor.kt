@@ -86,7 +86,7 @@ class AudioProcessor(
                     if (read > 0) {
                         val volume = pitchDetector.calculateRMS(readBuffer)
 
-                        val frequency = if (volume > 0.015f) {
+                        val frequency = if (volume > 0.002f) {
                             pitchDetector.detectPitch(readBuffer)
                         } else {
                             -1.0

@@ -3,35 +3,30 @@ package com.guitartuner.ui.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 import com.guitartuner.model.TuningAccuracy
 import com.guitartuner.ui.theme.TunerGreen
 import com.guitartuner.ui.theme.TunerRed
 import com.guitartuner.ui.theme.TunerYellow
 import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.min
-import kotlin.math.sin
 
 /**
- * V4 Stroboscopic tuner: rotating radial stripes inside a circular dial.
+ * Professional stroboscopic tuner with lateral-moving vertical bands.
  *
- * - Stripes rotate counter-clockwise when flat (cents < 0) and clockwise when sharp.
- * - Rotation speed is proportional to |cents|; stripes come to a standstill when in tune.
- * - Stripe color reflects tuning accuracy:
- *     |cents| <= 5  -> green
- *     |cents| <= 10 -> yellow
- *     otherwise     -> red
+ * - Bands scroll LEFT when the note is flat (cents < 0).
+ * - Bands scroll RIGHT when the note is sharp (cents > 0).
+ * - Bands freeze when the note is in tune (|cents| < 0.5).
+ * - Scroll speed is proportional to |cents|.
+ * - Color: green when tuned (≤5), yellow when close (≤10), red when off (>10).
  */
 @Composable
 fun StroboscopicTuner(
@@ -40,96 +35,88 @@ fun StroboscopicTuner(
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val transition = rememberInfiniteTransition(label = "strobe")
-
-    val speed = if (isActive) cents.toFloat() else 0f
-    // Duration of one full rotation. Faster when further from pitch; effectively static when in tune.
-    val duration = if (abs(speed) < 0.5f) 20000
-        else (4000.0 / abs(speed).coerceAtLeast(1f)).toInt().coerceIn(120, 6000)
-
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = if (speed >= 0f) 360f else -360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = duration, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
-
     val stripeColor: Color = when {
-        !isActive -> Color.Gray.copy(alpha = 0.3f)
+        !isActive -> Color.Gray.copy(alpha = 0.25f)
         abs(cents) <= 5.0 -> TunerGreen
         abs(cents) <= 10.0 -> TunerYellow
         else -> TunerRed
     }
 
     val bgColor = MaterialTheme.colorScheme.surface
-    val ringColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+    val borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+
+    // Speed: degrees per second of "virtual rotation" (mapped to lateral pixel offset).
+    // Near zero cents → nearly frozen; far from zero → fast scrolling.
+    val speed = if (isActive && abs(cents) > 0.3) cents.toFloat() else 0f
+
+    val duration = if (abs(speed) < 0.5f) 30000
+    else (5000.0 / abs(speed).coerceAtLeast(1f)).toInt().coerceIn(80, 8000)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "strobe")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (speed >= 0f) 1f else -1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = duration, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "phase"
+    )
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(200.dp),
+            .height(120.dp),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .size(180.dp)
-                .clip(CircleShape)
+                .fillMaxWidth()
+                .height(100.dp)
+                .clip(RoundedCornerShape(12.dp))
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
-                val cx = w / 2f
-                val cy = h / 2f
-                val radius = min(w, h) / 2f
 
-                // Background disk
-                drawCircle(color = bgColor, radius = radius, center = Offset(cx, cy))
+                // Background
+                drawRect(color = bgColor, size = size)
 
-                // Radial stripes - rotated as a group
-                rotate(rotation, pivot = Offset(cx, cy)) {
-                    val stripeCount = 12
-                    val halfAngle = (Math.PI / stripeCount).toFloat() * 0.45f // thinner stripes w/ gaps
-                    for (i in 0 until stripeCount) {
-                        val angle = (i * 2.0 * Math.PI / stripeCount).toFloat()
-                        val a1 = angle - halfAngle
-                        val a2 = angle + halfAngle
-                        val path = Path().apply {
-                            moveTo(cx, cy)
-                            lineTo(
-                                cx + radius * cos(a1),
-                                cy + radius * sin(a1)
-                            )
-                            lineTo(
-                                cx + radius * cos(a2),
-                                cy + radius * sin(a2)
-                            )
-                            close()
-                        }
-                        drawPath(path, color = stripeColor.copy(alpha = 0.85f))
-                    }
+                val bandCount = 16
+                val bandWidth = w / bandCount
+                val gapRatio = 0.45f
+                val barWidth = bandWidth * gapRatio
+
+                // phase goes 0→1 (or 0→-1); map to one full band-width of lateral offset
+                val offset = phase * bandWidth
+
+                // Draw bands from beyond left edge to beyond right edge so scrolling wraps
+                val startIdx = -2
+                val endIdx = bandCount + 2
+                for (i in startIdx until endIdx) {
+                    val x = i * bandWidth + offset
+                    if (x + barWidth < 0f || x > w) continue
+                    drawRect(
+                        color = stripeColor,
+                        topLeft = Offset(x, 0f),
+                        size = Size(barWidth, h)
+                    )
                 }
 
-                // Outer ring
-                drawCircle(
-                    color = ringColor,
-                    radius = radius - 1f,
-                    center = Offset(cx, cy),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                // Center reference line (thin marker showing "in tune" position)
+                drawRect(
+                    color = if (isActive && abs(cents) <= 2.0)
+                        TunerGreen.copy(alpha = 0.9f)
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                    topLeft = Offset(w / 2f - 1.5f, 0f),
+                    size = Size(3f, h)
                 )
 
-                // Inner hub
-                drawCircle(
-                    color = bgColor,
-                    radius = radius * 0.18f,
-                    center = Offset(cx, cy)
-                )
-                drawCircle(
-                    color = ringColor,
-                    radius = radius * 0.18f,
-                    center = Offset(cx, cy),
+                // Border
+                drawRect(
+                    color = borderColor,
+                    size = size,
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                 )
             }

@@ -194,15 +194,20 @@ class TunerViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // Vibrate when in tune (±2 cents)
-        if (currentState.vibrationEnabled && abs(cents) <= 2.0) {
+        if (currentState.vibrationEnabled && abs(cents) <= 2.0 && vibrator.hasVibrator()) {
             val now = System.currentTimeMillis()
             if (now - lastVibrateTime > 500) {
                 lastVibrateTime = now
                 try {
-                    vibrator.vibrate(
-                        VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
-                    )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        vibrator.vibrate(
+                            VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                        )
+                    } else {
+                        vibrator.vibrate(
+                            VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
+                        )
+                    }
                 } catch (_: Exception) { }
             }
         }

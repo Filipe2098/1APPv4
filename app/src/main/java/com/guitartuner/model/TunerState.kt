@@ -17,9 +17,28 @@ enum class AppLanguage(val code: String, val flag: String, val displayName: Stri
     SPANISH("es", "\uD83C\uDDEA\uD83C\uDDF8", "Español"),
     FRENCH("fr", "\uD83C\uDDEB\uD83C\uDDF7", "Français"),
     GERMAN("de", "\uD83C\uDDE9\uD83C\uDDEA", "Deutsch"),
-    CHINESE("zh", "\uD83C\uDDE8\uD83C\uDDF3", "中文"),
+    CHINESE_SIMPLIFIED("zh-CN", "\uD83C\uDDE8\uD83C\uDDF3", "简体中文"),
+    CHINESE_TRADITIONAL("zh-TW", "\uD83C\uDDF9\uD83C\uDDFC", "繁體中文"),
     JAPANESE("ja", "\uD83C\uDDEF\uD83C\uDDF5", "日本語"),
-    RUSSIAN("ru", "\uD83C\uDDF7\uD83C\uDDFA", "Русский")
+    RUSSIAN("ru", "\uD83C\uDDF7\uD83C\uDDFA", "Русский"),
+    SWEDISH("sv", "\uD83C\uDDF8\uD83C\uDDEA", "Svenska"),
+    NORWEGIAN("no", "\uD83C\uDDF3\uD83C\uDDF4", "Norsk"),
+    DANISH("da", "\uD83C\uDDE9\uD83C\uDDF0", "Dansk"),
+    DUTCH("nl", "\uD83C\uDDF3\uD83C\uDDF1", "Nederlands"),
+    ITALIAN("it", "\uD83C\uDDEE\uD83C\uDDF9", "Italiano"),
+    TURKISH("tr", "\uD83C\uDDF9\uD83C\uDDF7", "Türkçe"),
+    ARABIC("ar", "\uD83C\uDDF8\uD83C\uDDE6", "العربية"),
+    VIETNAMESE("vi", "\uD83C\uDDFB\uD83C\uDDF3", "Tiếng Việt"),
+    THAI("th", "\uD83C\uDDF9\uD83C\uDDED", "ไทย"),
+    INDONESIAN("id", "\uD83C\uDDEE\uD83C\uDDE9", "Indonesia"),
+    HINDI("hi", "\uD83C\uDDEE\uD83C\uDDF3", "हिन्दी"),
+    KOREAN("ko", "\uD83C\uDDF0\uD83C\uDDF7", "한국어"),
+    ROMANIAN("ro", "\uD83C\uDDF7\uD83C\uDDF4", "Română"),
+    UKRAINIAN("uk", "\uD83C\uDDFA\uD83C\uDDE6", "Українська"),
+    FINNISH("fi", "\uD83C\uDDEB\uD83C\uDDEE", "Suomi"),
+    GREEK("el", "\uD83C\uDDEC\uD83C\uDDF7", "Ελληνικά"),
+    HUNGARIAN("hu", "\uD83C\uDDED\uD83C\uDDFA", "Magyar"),
+    BENGALI("bn", "\uD83C\uDDE7\uD83C\uDDE9", "বাংলা")
 }
 
 enum class TuningAccuracy {
@@ -44,14 +63,21 @@ data class TunerState(
     // Metronome
     val metronomeBpm: Int = 120,
     val metronomeIsPlaying: Boolean = false,
-    val metronomeBeat: Int = 0, // current beat index for visual
-    val metronomeBeatsPerMeasure: Int = 4
+    val metronomeBeat: Int = 0,
+    val metronomeBeatsPerMeasure: Int = 4,
+    // Language filter
+    val showAllLanguages: Boolean = false,
+    val favoriteLanguages: Set<String> = setOf(
+        AppLanguage.PORTUGUESE.name,
+        AppLanguage.ENGLISH.name,
+        AppLanguage.SPANISH.name,
+        AppLanguage.FRENCH.name,
+        AppLanguage.GERMAN.name,
+    )
 ) {
     val isHighPrecision: Boolean
         get() = instrumentType.highPrecision
 
-    // Bowed instruments: ±20 cents range gives fine control
-    // Fretted instruments: ±50 cents range is standard
     val centsRange: Double
         get() = if (isHighPrecision) 20.0 else 50.0
 
@@ -63,7 +89,16 @@ data class TunerState(
             else -> TuningAccuracy.OFF
         }
 
-    // For backwards compatibility in theme checks
     val isDarkMode: Boolean
         get() = themeMode == ThemeMode.DARK
+
+    val isRtl: Boolean
+        get() = language == AppLanguage.ARABIC
+
+    val visibleLanguages: List<AppLanguage>
+        get() = if (showAllLanguages) {
+            AppLanguage.entries.toList()
+        } else {
+            AppLanguage.entries.filter { it.name in favoriteLanguages || it == language }
+        }
 }

@@ -8,28 +8,27 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * Precise-timing metronome.
+ * Precise-timing metronome locked to the hardware audio clock.
  *
- * Instead of "play click, then sleep, then play next click" (which accumulates drift
- * because every call has a small overhead), we emit a single continuous PCM stream.
- * The interval between clicks is counted in SAMPLES, not in milliseconds, so timing
- * is locked to the audio hardware clock -- the most accurate clock available.
+ * Beat intervals are measured in SAMPLES, not milliseconds, so timing
+ * accuracy is limited only by the DAC crystal — no coroutine/sleep drift.
  *
- * A dedicated writer thread refills the AudioTrack in small chunks; the UI beat
- * notification fires the moment a click enters the hardware buffer, corrected by the
- * pre-measured hardware latency so the flash aligns with what the user hears.
+ * A dedicated writer thread fills the AudioTrack stream. A separate UI
+ * poller fires the beat callback when the AudioTrack's playback head
+ * actually reaches each beat boundary, so visual indicators are
+ * synchronized with audible clicks — not with buffer-write time.
  */
 class MetronomeEngine {
 
     private var audioTrack: AudioTrack? = null
-    private var job: Job? = null
+    private var writerJob: Job? = null
+    private var uiJob: Job? = null
     @Volatile private var isPlaying = false
 
     private val sampleRate = 44100
 
-    // Pre-generate click sounds (16-bit PCM)
-    private val clickHigh: ShortArray = generateClick(1000.0, 0.03) // accent beat
-    private val clickLow: ShortArray = generateClick(800.0, 0.02)   // normal beat
+    private val clickHigh: ShortArray = generateClick(1000.0, 0.03)
+    private val clickLow: ShortArray = generateClick(800.0, 0.02)
 
     private var onBeat: ((Int) -> Unit)? = null
 
@@ -46,9 +45,7 @@ class MetronomeEngine {
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        // A larger internal buffer lets the hardware keep playing even if the writer
-        // thread briefly stalls; we aim for ~0.5s of buffered audio.
-        val bufferBytes = maxOf(minBuffer, sampleRate) // 1 second of 16-bit mono
+        val bufferBytes = maxOf(minBuffer, sampleRate)
 
         val track = AudioTrack.Builder()
             .setAudioAttributes(
@@ -70,29 +67,19 @@ class MetronomeEngine {
         audioTrack = track
         track.play()
 
-        // Total samples per beat -- the authoritative time unit.
         val samplesPerBeat = (sampleRate * 60.0 / bpm).toInt().coerceAtLeast(
             maxOf(clickHigh.size, clickLow.size) + 1
         )
 
-        job = CoroutineScope(Dispatchers.Default).launch {
+        val scope = CoroutineScope(Dispatchers.Default)
+
+        // Writer: fills the AudioTrack continuously with click + silence per beat.
+        writerJob = scope.launch {
             var beat = 0
-            var beatStartSample = 0L
-
             while (isActive && isPlaying) {
-                val isAccent = beat == 0
-                val click = if (isAccent) clickHigh else clickLow
-
-                // Build one beat's worth of audio: click + silence pad.
+                val click = if (beat == 0) clickHigh else clickLow
                 val beatBuffer = ShortArray(samplesPerBeat)
                 System.arraycopy(click, 0, beatBuffer, 0, click.size)
-                // the rest stays zero-valued = silence
-
-                // Fire UI callback ahead of the hardware playing this click, offset by
-                // the hardware's own latency so the visible flash matches the audible click.
-                launch(Dispatchers.Main.immediate) {
-                    onBeat?.invoke(beat)
-                }
 
                 var written = 0
                 while (written < beatBuffer.size && isActive && isPlaying) {
@@ -106,16 +93,35 @@ class MetronomeEngine {
                     written += n
                 }
 
-                beatStartSample += samplesPerBeat
                 beat = (beat + 1) % beatsPerMeasure
+            }
+        }
+
+        // UI poller: fires onBeat when the hardware playback head reaches each beat boundary.
+        uiJob = scope.launch {
+            var currentBeatSample = 0L
+            var currentBeatIdx = 0
+
+            while (isActive && isPlaying) {
+                val head = track.playbackHeadPosition.toLong() and 0xFFFFFFFFL
+                if (head >= currentBeatSample) {
+                    val idx = currentBeatIdx
+                    withContext(Dispatchers.Main.immediate) { onBeat?.invoke(idx) }
+                    currentBeatSample += samplesPerBeat
+                    currentBeatIdx = (currentBeatIdx + 1) % beatsPerMeasure
+                } else {
+                    delay(2)
+                }
             }
         }
     }
 
     fun stop() {
         isPlaying = false
-        job?.cancel()
-        job = null
+        writerJob?.cancel()
+        uiJob?.cancel()
+        writerJob = null
+        uiJob = null
         try {
             audioTrack?.pause()
             audioTrack?.flush()
@@ -131,7 +137,6 @@ class MetronomeEngine {
 
         for (i in 0 until numSamples) {
             val t = i.toDouble() / sampleRate
-            // Sine with quadratic decay -> crisp, short click with no lingering tone.
             val envelope = (1.0 - t / durationSec).let { it * it }
             val sample = sin(2.0 * PI * frequency * t) * envelope * 0.8
             samples[i] = (sample * Short.MAX_VALUE).toInt().toShort()
