@@ -44,6 +44,7 @@ fun StroboscopicTuner(
 
     val bgColor = MaterialTheme.colorScheme.surface
     val borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val centerLineInactive = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
 
     // Speed: degrees per second of "virtual rotation" (mapped to lateral pixel offset).
     // Near zero cents → nearly frozen; far from zero → fast scrolling.
@@ -108,7 +109,7 @@ fun StroboscopicTuner(
                     color = if (isActive && abs(cents) <= 2.0)
                         TunerGreen.copy(alpha = 0.9f)
                     else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                        centerLineInactive,
                     topLeft = Offset(w / 2f - 1.5f, 0f),
                     size = Size(3f, h)
                 )

@@ -312,7 +312,7 @@ private fun PillChip(
 private fun LanguageGrid(
     languages: List<AppLanguage>,
     selectedLanguage: AppLanguage,
-    favoriteLanguages: Set<AppLanguage>,
+    favoriteLanguages: Set<String>,
     showAllLanguages: Boolean,
     onLanguageSelected: (AppLanguage) -> Unit,
     onToggleFavorite: (AppLanguage) -> Unit
@@ -327,7 +327,7 @@ private fun LanguageGrid(
             ) {
                 row.forEach { lang ->
                     val isSelected = lang == selectedLanguage
-                    val isFavorite = lang in favoriteLanguages
+                    val isFavorite = lang.name in favoriteLanguages
 
                     Box(
                         modifier = Modifier
